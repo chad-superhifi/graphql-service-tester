@@ -3,7 +3,7 @@ type Query {
   tags: [Tag]
 
   # Examples:
-  # pl1: playlist(id: "{{summerPlaylist.id}}") @sla(maxResponseTime: "1ms")
+  # pl1: playlist(id: "{{summerPlaylist.id}}") @sla(maxResponseTime: "1s")
   # pl2: playlist(id: "{{fallPlaylist.id}}") @ensureMinimum(nItems: 2, inArrays:["pl2.tracks"])
   playlist(id: ID!): Playlist
 

@@ -58,11 +58,9 @@ async function main() {
       `${report.status === 'passed' && report.run.meetsSLA ? '' : '^R'}${
         report.query.signature || report.query.query
       } ${
-        report.status === 'passed' && report.run.meetsSLA && !program.verbose
+        report.status === 'passed' && !program.verbose
           ? ''
-          : `${report.errors.length ? '\n\n' + report.errors[0] + '\n' : ''}${
-              !report.run.meetsSLA ? `\n\nSLA response time ${report.query.sla?.responseTime}ms exceeded\n` : ''
-            }${program.verbose ? '' : ''}`
+          : `${report.errors.length ? '\n\n' + report.errors[0] + '\n' : ''}`
       }\n`,
       `${report.run.meetsSLA ? '^G' : '^R'}${report.run.ms}ms `,
     ]),
@@ -77,13 +75,21 @@ async function main() {
     }
   );
 
-  const failedTests = reportData.filter((report) => report.status === 'failed' || !report.run.meetsSLA).length;
+  const failedTests = reportData.filter((report) => report.status === 'failed' || !report.run.meetsSLA);
   const passedTests = reportData.filter((report) => report.status === 'passed' && report.run.meetsSLA).length;
 
-  term.green(`\n${passedTests} passing\n`);
-  term.red(`${failedTests} failing\n\n`);
+  if (failedTests.length) term.bold.red('\nFailed Tests:\n\n');
+  failedTests.forEach((report) => {
+    report.errors.forEach((err) => {
+      term.red(`${report.query.signature || report.query.query} \n`);
+      term(`- ${err} \n\n`);
+    });
+  });
 
-  process.exitCode = failedTests > 0 ? 1 : 0;
+  term.green(`\n${passedTests} passing\n`);
+  term.red(`${failedTests.length} failing\n\n`);
+
+  process.exitCode = failedTests.length > 0 ? 1 : 0;
 }
 
 main();

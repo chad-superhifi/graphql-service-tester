@@ -81,51 +81,54 @@ export async function runGraphQLTests(server: string | IMockServer, progressCall
 
       report.run.meetsSLA = Boolean(report.run.ms <= (sla ? sla.responseTime : 120000));
 
-      const errors = response.errors;
+      const errors = response.errors || [];
 
-      if (errors) {
-        // console.log('ERRORS: ', errors);
-        errors.map((error) => logErrorToReport(report, 'API Error: ' + error.message));
-      } else {
-        // Store responses in memory so they can be used for an argument to another query/mutation call
-        responseData = { ...responseData, ...response.data };
+      if (errors.length) errors.map((error) => logErrorToReport(report, 'API Error: ' + error.message));
 
-        const minimums = item.ensureMinimum;
-        // Ensure minimums are met
-        if (minimums) {
-          minimums.arrays.forEach((field) => {
-            const parts = field.split('.');
-            let currentField = '';
-            let reference = response.data;
-            parts.forEach((part) => {
-              if (Array.isArray(reference)) {
-                const isValid = reference.length >= minimums.items;
-                //  console.log(currentField, isValid);
-                if (!isValid) {
-                  logErrorToReport(
-                    report,
-                    `${currentField} array (length ${reference.length}) did not meet min length ${minimums.items}`
-                  );
-                }
-                reference = reference[0];
-                currentField += '[0]';
+      if (!report.run.meetsSLA)
+        logErrorToReport(
+          report,
+          `SLA response time: ${report.query.sla?.responseTime}ms exceeded by ${report.run.ms}ms`
+        );
+
+      // Store responses in memory so they can be used for an argument to another query/mutation call
+      responseData = { ...responseData, ...response.data };
+
+      const minimums = item.ensureMinimum;
+      // Ensure minimums are met
+      if (minimums) {
+        minimums.arrays.forEach((field) => {
+          const parts = field.split('.');
+          let currentField = '';
+          let reference = response.data;
+          parts.forEach((part) => {
+            if (Array.isArray(reference)) {
+              const isValid = reference.length >= minimums.items;
+              //  console.log(currentField, isValid);
+              if (!isValid) {
+                logErrorToReport(
+                  report,
+                  `${currentField} array (length ${reference.length}) did not meet min length ${minimums.items}`
+                );
               }
-              currentField += '.' + part;
+              reference = reference[0];
+              currentField += '[0]';
+            }
+            currentField += '.' + part;
 
-              reference = reference[part];
-              if (reference === undefined) {
-                throw new Error(`@ensureMinimum could not find ${currentField}`);
-              }
-            });
-            const isValid = reference.length >= minimums.items;
-            if (!isValid) {
-              logErrorToReport(
-                report,
-                `${currentField} array (length ${reference.length}) did not meet min length ${minimums.items}`
-              );
+            reference = reference[part];
+            if (reference === undefined) {
+              throw new Error(`@ensureMinimum could not find ${currentField}`);
             }
           });
-        }
+          const isValid = reference.length >= minimums.items;
+          if (!isValid) {
+            logErrorToReport(
+              report,
+              `${currentField} array (length ${reference.length}) did not meet min length ${minimums.items}`
+            );
+          }
+        });
       }
     } catch (error) {
       logErrorToReport(report, error);
@@ -183,7 +186,8 @@ function pluginParameters(inputString, query, responseData, queries) {
 
 function logErrorToReport(report, error) {
   const errorMessage = error.message || error;
-  report.errors.push(errorMessage);
+  report.errors = report.errors || [];
+  report.errors.push(`${errorMessage}`);
   report.status = 'failed';
 }
 
