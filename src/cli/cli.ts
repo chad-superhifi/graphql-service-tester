@@ -30,7 +30,7 @@ async function main() {
   let server;
 
   if (serverUrl === 'playlist') {
-    console.log('Using local mock playlist service for testing');
+    console.log('Using local mock playlist service for testing\n');
     server = mockPlaylistServer();
   }
 
@@ -51,34 +51,33 @@ async function main() {
       progressBar.itemDone(name);
     }
   });
-  term.bold('\n\nAPIs\n\n');
-  term.table(
-    reportData.map((report) => [
-      report.status === 'passed' && report.run.meetsSLA ? '^G√ ' : '',
-      `${report.status === 'passed' && report.run.meetsSLA ? '' : '^R'}${
-        report.query.signature || report.query.query
-      } ${
-        report.status === 'passed' && !program.verbose
-          ? ''
-          : `${report.errors.length ? '\n\n' + report.errors[0] + '\n' : ''}`
-      }\n`,
-      `${report.run.meetsSLA ? '^G' : '^R'}${report.run.ms}ms `,
-    ]),
-    {
-      hasBorder: true,
-      borderChars: 'lightRounded',
-      borderAttr: { color: 'blue' },
-      contentHasMarkup: true,
-      textAttr: { bgColor: 'default' },
-      width: 80,
-      fit: true,
-    }
-  );
+
+  if (program.verbose) {
+    term.bold('\n\nAPIs:\n');
+    term.table(
+      reportData.map((report) => [
+        report.status === 'passed' && report.run.meetsSLA ? '^G√ ' : '',
+        `${report.status === 'passed' && report.run.meetsSLA ? '' : '^R'}${
+          report.query.signature || report.query.query
+        } ${report.errors.length ? '\n\n' + report.errors[0] + '\n' : ''}\n`,
+        `${report.run.meetsSLA ? '^G' : '^R'}${report.run.ms}ms `,
+      ]),
+      {
+        hasBorder: true,
+        borderChars: 'lightRounded',
+        borderAttr: { color: 'blue' },
+        contentHasMarkup: true,
+        textAttr: { bgColor: 'default' },
+        width: 80,
+        fit: true,
+      }
+    );
+  }
 
   const failedTests = reportData.filter((report) => report.status === 'failed' || !report.run.meetsSLA);
   const passedTests = reportData.filter((report) => report.status === 'passed' && report.run.meetsSLA).length;
 
-  if (failedTests.length) term.bold.red('\nFailed Tests:\n\n');
+  failedTests.length && term.bold.red('\nFailed Tests:\n\n');
   failedTests.forEach((report) => {
     report.errors.forEach((err) => {
       term.red(`${report.query.signature || report.query.query} \n`);
@@ -86,7 +85,8 @@ async function main() {
     });
   });
 
-  term.green(`\n${passedTests} passing\n`);
+  term.bold('\n\n\nResults:\n');
+  term.green(`${passedTests} passing\n`);
   term.red(`${failedTests.length} failing\n\n`);
 
   process.exitCode = failedTests.length > 0 ? 1 : 0;
